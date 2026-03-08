@@ -1,26 +1,20 @@
 {
   "name": "AG Family",
-  "short_name": "AG Family",
-  "description": "Agenda Gioffrè Family — Calendario condiviso a controllo vocale",
+  "short_name": "AG",
+  "description": "Agenda Gioffr\u00e8 Family \u2014 Calendario condiviso a controllo vocale",
   "start_url": "/heroic-lamington-541b34/",
+  "scope": "/heroic-lamington-541b34/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0d0f14",
-  "theme_color": "#0d0f14",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "lang": "it",
   "icons": [
     {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iYmciIGN4PSI1MCUiIGN5PSI0MCUiIHI9IjYwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxYTFhMmUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDAwMDAwIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGZpbHRlciBpZD0iZ2xpdHRlciI+CiAgICAgIDxmZVR1cmJ1bGVuY2UgdHlwZT0iZnJhY3RhbE5vaXNlIiBiYXNlRnJlcXVlbmN5PSIwLjkiIG51bU9jdGF2ZXM9IjQiIHJlc3VsdD0ibm9pc2UiLz4KICAgICAgPGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIgaW49Im5vaXNlIiByZXN1bHQ9ImdyYXlOb2lzZSIvPgogICAgICA8ZmVCbGVuZCBpbj0iU291cmNlR3JhcGhpYyIgaW4yPSJncmF5Tm9pc2UiIG1vZGU9InNjcmVlbiIgcmVzdWx0PSJibGVuZCIvPgogICAgICA8ZmVDb21wb3NpdGUgaW49ImJsZW5kIiBpbjI9IlNvdXJjZUdyYXBoaWMiIG9wZXJhdG9yPSJpbiIvPgogICAgPC9maWx0ZXI+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImdsaXR0ZXJHb2xkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMjUlIiAgc3RvcC1jb2xvcj0iI2U4ZThlOCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNmZmZmZmYiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI3NSUiICBzdG9wLWNvbG9yPSIjY2NjY2NjIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2ZmZmZmZiIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPCEtLSBTZm9uZG8gbmVybyAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0idXJsKCNiZykiIHJ4PSI4MCIvPgogIDwhLS0gQm9yZG8gc290dGlsZSBkb3JhdG8gLS0+CiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjE1KSIgc3Ryb2tlLXdpZHRoPSI4IiByeD0iODAiLz4KICA8IS0tIExldHRlcmEgRyBncmFuZGUgYmlhbmNhIGdsaXR0ZXIgLS0+CiAgPHRleHQgeD0iMjU2IiB5PSIzNTUiCiAgICBmb250LWZhbWlseT0iR2VvcmdpYSwgc2VyaWYiCiAgICBmb250LXNpemU9IjMyMCIKICAgIGZvbnQtd2VpZ2h0PSIzMDAiCiAgICB0ZXh0LWFuY2hvcj0ibWlkZGxlIgogICAgZmlsbD0idXJsKCNnbGl0dGVyR29sZCkiCiAgICBmaWx0ZXI9InVybCgjZ2xpdHRlcikiCiAgICBsZXR0ZXItc3BhY2luZz0iLTEwIj5HPC90ZXh0PgogIDwhLS0gUHVudGluaSBnbGl0dGVyIHNwYXJzaSAtLT4KICA8Y2lyY2xlIGN4PSIxNDAiIGN5PSIxMjAiIHI9IjMiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjgiLz4KICA8Y2lyY2xlIGN4PSIzODAiIGN5PSIxMDAiIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjYiLz4KICA8Y2lyY2xlIGN4PSI0MjAiIGN5PSIyMDAiIHI9IjQiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjUiLz4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIzNTAiIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjciLz4KICA8Y2lyY2xlIGN4PSI0NTAiIGN5PSIzODAiIHI9IjMiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjYiLz4KICA8Y2lyY2xlIGN4PSIyMDAiIGN5PSI4MCIgIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjkiLz4KICA8Y2lyY2xlIGN4PSIzNTAiIGN5PSI0MjAiIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjUiLz4KICA8Y2lyY2xlIGN4PSI4MCIgIGN5PSIyMDAiIHI9IjMiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjQiLz4KPC9zdmc+Cg==",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["productivity", "utilities"]
+  ]
 }

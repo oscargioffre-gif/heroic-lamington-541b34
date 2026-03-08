@@ -1544,8 +1544,20 @@ function toggleVoice(){
     if(!APP.isOnline && !APP.conflictQueue){
       showToast('Sei offline. I comandi verranno accodati.', 'warning');
     }
-    try{ APP.recognition.start(); }
-    catch(e){ console.warn(e); }
+    // Richiedi permesso microfono esplicitamente (necessario su mobile)
+    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+      navigator.mediaDevices.getUserMedia({audio:true})
+        .then(() => {
+          try{ APP.recognition.start(); }
+          catch(e){ console.warn(e); }
+        })
+        .catch(() => {
+          showToast('Permesso microfono negato. Vai nelle impostazioni del browser.', 'error');
+        });
+    } else {
+      try{ APP.recognition.start(); }
+      catch(e){ console.warn(e); }
+    }
   }
 }
 
