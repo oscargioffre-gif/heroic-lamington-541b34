@@ -1538,29 +1538,82 @@ function initVoice(){
 }
 
 function toggleVoice(){
-  if(Date.now() - APP.lastVoiceEnd < 400) return; // anti-bounce
+  if(Date.now() - APP.lastVoiceEnd < 400) return;
+
   if(APP.voiceState === 'listening'){
     APP.recognition.stop();
     setVoiceState('idle');
-  } else if(APP.voiceState === 'idle' || APP.voiceState === 'error'){
-    if(!APP.isOnline && !APP.conflictQueue){
-      showToast('Sei offline. I comandi verranno accodati.', 'warning');
-    }
-    // Richiedi permesso microfono esplicitamente (necessario su mobile)
-    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-      navigator.mediaDevices.getUserMedia({audio:true})
-        .then(() => {
-          try{ APP.recognition.start(); }
-          catch(e){ console.warn(e); }
-        })
-        .catch(() => {
-          showToast('Permesso microfono negato. Vai nelle impostazioni del browser.', 'error');
-        });
-    } else {
-      try{ APP.recognition.start(); }
-      catch(e){ console.warn(e); }
-    }
+    return;
   }
+
+  if(APP.voiceState !== 'idle' && APP.voiceState !== 'error') return;
+
+  // Su mobile: prima ottieni stream audio, poi avvia riconoscimento
+  // Questo forza il browser a richiedere il permesso e mantiene il microfono attivo
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      // Mantieni lo stream attivo durante il riconoscimento
+      APP.micStream = stream;
+
+      // Crea nuova istanza per evitare problemi di stato su Android
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const rec = new SR();
+      rec.lang = 'it-IT';
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 3;
+
+      rec.onstart = () => {
+        setVoiceState('listening');
+        startAudioVisualization();
+      };
+
+      rec.onresult = (e) => {
+        let interim = '', final = '';
+        for(let i = e.resultIndex; i < e.results.length; i++){
+          const t = e.results[i][0].transcript;
+          if(e.results[i].isFinal) final += t;
+          else interim += t;
+        }
+        document.getElementById('voice-transcript').textContent = final || interim;
+        if(final){
+          stopAudioVisualization();
+          try{ rec.stop(); } catch(e){}
+          // Libera stream
+          if(APP.micStream) APP.micStream.getTracks().forEach(t=>t.stop());
+          processVoiceCommand(final.trim().toLowerCase());
+        }
+      };
+
+      rec.onerror = (e) => {
+        stopAudioVisualization();
+        if(APP.micStream) APP.micStream.getTracks().forEach(t=>t.stop());
+        const msg = {
+          'no-speech': 'Nessun suono rilevato. Riprova.',
+          'not-allowed': 'Microfono non autorizzato.',
+          'network': 'Errore di rete.',
+          'aborted': 'Ascolto interrotto.'
+        };
+        setVoiceState('error', msg[e.error] || 'Errore: ' + e.error);
+        setTimeout(()=>setVoiceState('idle'), 2500);
+      };
+
+      rec.onend = () => {
+        APP.lastVoiceEnd = Date.now();
+        stopAudioVisualization();
+        if(APP.micStream) APP.micStream.getTracks().forEach(t=>t.stop());
+        if(APP.voiceState === 'listening') setVoiceState('idle');
+      };
+
+      APP.recognition = rec;
+      try{ rec.start(); }
+      catch(e){ 
+        showToast('Errore avvio microfono: ' + e.message, 'error');
+      }
+    })
+    .catch(err => {
+      showToast('Microfono non disponibile: ' + err.message, 'error');
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════════
