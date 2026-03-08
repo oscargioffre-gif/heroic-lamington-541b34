@@ -1494,7 +1494,7 @@ function initVoice(){
   }
   const rec = new SR();
   rec.lang = 'it-IT';
-  rec.continuous = false;
+  rec.continuous = true;   /* continuous=true aiuta su Android PWA */
   rec.interimResults = true;
   rec.maxAlternatives = 3;
 
@@ -1514,6 +1514,8 @@ function initVoice(){
 
     if(final){
       stopAudioVisualization();
+      /* Ferma il riconoscimento dopo risultato finale (importante su mobile) */
+      try{ APP.recognition.stop(); } catch(e){}
       processVoiceCommand(final.trim().toLowerCase());
     }
   };
