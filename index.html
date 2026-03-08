@@ -181,105 +181,79 @@ body::before {
     var(--ink);
 }
 
-/* ─── HEADER RIDISEGNATO ─── */
+/* ─── HEADER PULITO ─── */
 header {
   position:sticky; top:0; z-index:50;
   display:flex; flex-direction:column; align-items:center;
-  padding: 1.6rem 1.5rem 0;
-  background: rgba(13,15,20,0.92);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid var(--border);
+  padding: 2rem 1.5rem 0;
+  background: #0d0f14;
+  border-bottom: 1px solid rgba(201,168,76,0.12);
   gap:0;
 }
 
-/* Linea decorativa dorata sopra header */
-header::before {
-  content:'';
-  position:absolute; top:0; left:10%; right:10%;
-  height:1px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  opacity:0.6;
-}
+header::before { display:none; }
 
-/* Zona logo centrata */
 .header-brand {
   display:flex; flex-direction:column; align-items:center;
-  gap:0.5rem; margin-bottom:0.9rem;
+  gap:0; margin-bottom:1rem;
 }
 
-/* Monogramma AG — grande e luminoso */
-.header-logo {
+.header-logo { line-height:1; text-align:center; }
+
+.logo-main {
+  display: block;
   font-family: var(--font-serif);
-  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-size: clamp(2.6rem, 7vw, 4.2rem);
   font-weight: 300;
-  color: var(--gold);
-  letter-spacing: 0.18em;
-  line-height: 1;
-  text-shadow:
-    0 0 30px rgba(201,168,76,0.5),
-    0 0 80px rgba(201,168,76,0.2),
-    0 2px 4px rgba(0,0,0,0.8);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #c9a84c;
+  text-shadow: none;
   animation: none;
 }
 
-@keyframes logoGlow {
-  from { text-shadow: 0 0 20px rgba(201,168,76,0.4), 0 0 60px rgba(201,168,76,0.15); }
-  to   { text-shadow: 0 0 40px rgba(201,168,76,0.7), 0 0 100px rgba(201,168,76,0.3); }
-}
-
-/* Divisore decorativo */
-.header-divider {
-  width: clamp(60px, 12vw, 120px);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  margin: 0.3rem 0;
-  opacity:0.7;
-}
-
-/* Sottotitolo */
-.header-logo span {
-  font-size: clamp(0.55rem, 1.8vw, 0.7rem);
+.logo-sub {
+  display: block;
+  font-size: clamp(0.56rem, 1.5vw, 0.68rem);
   font-family: var(--font-mono);
-  letter-spacing: 0.35em;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: var(--ivory-dim);
-  display:block;
-  text-align:center;
-  margin-top:0.1rem;
+  color: #6a6258;
+  margin-top: 1rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(201,168,76,0.15);
 }
 
-/* Email utente piccola e discreta */
+.header-divider { display:none; }
+
 #user-badge {
-  font-size:0.62rem;
-  color: var(--gold-dim);
+  font-size:0.6rem;
+  color: #4a443c;
   font-family: var(--font-mono);
   letter-spacing:0.08em;
-  max-width:200px;
+  max-width:220px;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-  opacity:0.7;
-  margin-top:0.15rem;
+  margin-top:0.5rem;
 }
 
-/* Toolbar bottoni — riga orizzontale centrata */
 .header-toolbar {
   display:flex; align-items:center; justify-content:center;
   flex-wrap:wrap;
   gap:0.4rem;
-  padding: 0.6rem 0 0.8rem;
+  padding: 0.7rem 0 0.9rem;
   width:100%;
-  border-top: 1px solid rgba(201,168,76,0.08);
-  margin-top:0.5rem;
+  border-top: 1px solid rgba(201,168,76,0.1);
+  margin-top:0.8rem;
 }
 
 .btn-icon {
-  background: rgba(201,168,76,0.04);
-  border:1px solid var(--border);
+  background: none;
+  border:1px solid rgba(201,168,76,0.2);
   border-radius: 20px;
   padding:0.35rem 0.85rem;
-  color:var(--ivory-dim);
+  color: #8a8272;
   font-size:0.72rem;
   font-family: var(--font-mono);
   letter-spacing:0.06em;
@@ -288,18 +262,9 @@ header::before {
   white-space:nowrap;
 }
 
-.btn-icon:hover {
-  color:var(--gold);
-  border-color:var(--gold-dim);
-  background: rgba(201,168,76,0.1);
-  box-shadow: 0 0 12px rgba(201,168,76,0.15);
-}
+.btn-icon:hover { color:var(--gold); border-color:var(--gold); }
+.btn-icon.danger:hover { color:#e74c3c; border-color:#e74c3c; }
 
-.btn-icon.danger:hover {
-  color:#e74c3c;
-  border-color:#e74c3c;
-  background: rgba(231,76,60,0.08);
-}
 
 /* ─── GRID PRINCIPALE ─── */
 .app-grid {
