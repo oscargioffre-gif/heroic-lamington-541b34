@@ -1,0 +1,2615 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="description" content="Agenda Gioffrè — Calendario condiviso a controllo vocale"/>
+<title>AG · Agenda Gioffrè</title>
+
+<!-- PWA: installabile su smartphone -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0d0f14"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AG"/>
+
+<!-- Firebase SDK v10 (modular via compat CDN per semplicità deploy) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<!-- Tipografia italiana di carattere -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+
+<style>
+/* ─────────────────────────────────────────────
+   DESIGN SYSTEM — Lusso Italiano Notturno
+   Palette: inchiostro, oro, avorio
+───────────────────────────────────────────── */
+:root {
+  --ink:       #0d0f14;
+  --ink-2:     #141720;
+  --ink-3:     #1c2030;
+  --gold:      #c9a84c;
+  --gold-dim:  #7a6230;
+  --gold-glow: rgba(201,168,76,0.15);
+  --ivory:     #f0ead8;
+  --ivory-dim: #8a8272;
+  --red-err:   #c0392b;
+  --green-ok:  #27ae60;
+  --blue-info: #2980b9;
+  --border:    rgba(201,168,76,0.18);
+  --radius:    12px;
+  --radius-sm: 6px;
+  --font-serif:  'Cormorant Garamond', Georgia, serif;
+  --font-sans:   'Instrument Sans', sans-serif;
+  --font-mono:   'DM Mono', monospace;
+  --shadow:    0 8px 48px rgba(0,0,0,0.6);
+  --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+html, body {
+  height:100%;
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Grain texture overlay */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity:0.6;
+}
+
+/* ─── SCHERMATA DI LOGIN ─── */
+#login-screen {
+  position:fixed; inset:0; z-index:100;
+  display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at 50% 30%, #1c2030 0%, #0d0f14 70%);
+}
+
+.login-card {
+  width:min(420px, 92vw);
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3rem 2.5rem;
+  text-align:center;
+  box-shadow: var(--shadow), 0 0 80px rgba(201,168,76,0.06);
+  animation: fadeUp 0.6s ease both;
+}
+
+.login-logo {
+  font-family: var(--font-serif);
+  font-size: 3.8rem;
+  font-weight: 300;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  line-height:1;
+  margin-bottom: 0.2rem;
+}
+
+.login-tagline {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  text-transform:uppercase;
+  color: var(--ivory-dim);
+  margin-bottom: 2.5rem;
+}
+
+.login-card h2 {
+  font-family: var(--font-serif);
+  font-weight:300;
+  font-size:1.4rem;
+  color: var(--ivory);
+  margin-bottom: 0.5rem;
+}
+
+.login-card p {
+  font-size: 0.85rem;
+  color: var(--ivory-dim);
+  margin-bottom: 2rem;
+}
+
+.input-group {
+  position:relative;
+  margin-bottom: 1rem;
+}
+
+.input-group input {
+  width:100%;
+  background: var(--ink-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1rem;
+  color: var(--ivory);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  outline:none;
+  transition: border-color var(--transition);
+}
+
+.input-group input:focus {
+  border-color: var(--gold);
+}
+
+.input-group input::placeholder { color: var(--ivory-dim); }
+
+.btn-primary {
+  width:100%;
+  background: linear-gradient(135deg, #c9a84c 0%, #a07e30 100%);
+  border:none; border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight:600;
+  font-size:0.9rem;
+  letter-spacing:0.05em;
+  cursor:pointer;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
+.btn-primary:active { transform:translateY(0); }
+
+#login-error {
+  margin-top:1rem;
+  font-size:0.82rem;
+  color: var(--red-err);
+  min-height:1.2em;
+}
+
+/* ─── APP PRINCIPALE ─── */
+#app {
+  display:none;
+  min-height:100vh;
+  position:relative;
+  z-index:1;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(201,168,76,0.04) 0%, transparent 70%),
+    var(--ink);
+}
+
+/* ─── HEADER RIDISEGNATO ─── */
+header {
+  position:sticky; top:0; z-index:50;
+  display:flex; flex-direction:column; align-items:center;
+  padding: 1.4rem 1.5rem 0;
+  background: rgba(13,15,20,0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+  gap:0;
+}
+
+/* Linea decorativa dorata sopra header */
+header::before {
+  content:'';
+  position:absolute; top:0; left:10%; right:10%;
+  height:1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity:0.6;
+}
+
+/* Zona logo centrata */
+.header-brand {
+  display:flex; flex-direction:column; align-items:center;
+  gap:0.15rem; margin-bottom:0.9rem;
+}
+
+/* Monogramma AG — grande e luminoso */
+.header-logo {
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 300;
+  color: var(--gold);
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-shadow:
+    0 0 30px rgba(201,168,76,0.5),
+    0 0 80px rgba(201,168,76,0.2),
+    0 2px 4px rgba(0,0,0,0.8);
+  animation: logoGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes logoGlow {
+  from { text-shadow: 0 0 20px rgba(201,168,76,0.4), 0 0 60px rgba(201,168,76,0.15); }
+  to   { text-shadow: 0 0 40px rgba(201,168,76,0.7), 0 0 100px rgba(201,168,76,0.3); }
+}
+
+/* Divisore decorativo */
+.header-divider {
+  width: clamp(60px, 12vw, 120px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 0.3rem 0;
+  opacity:0.7;
+}
+
+/* Sottotitolo */
+.header-logo span {
+  font-size: clamp(0.55rem, 1.8vw, 0.7rem);
+  font-family: var(--font-mono);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--ivory-dim);
+  display:block;
+  text-align:center;
+  margin-top:0.1rem;
+}
+
+/* Email utente piccola e discreta */
+#user-badge {
+  font-size:0.62rem;
+  color: var(--gold-dim);
+  font-family: var(--font-mono);
+  letter-spacing:0.08em;
+  max-width:200px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  opacity:0.7;
+  margin-top:0.15rem;
+}
+
+/* Toolbar bottoni — riga orizzontale centrata */
+.header-toolbar {
+  display:flex; align-items:center; justify-content:center;
+  flex-wrap:wrap;
+  gap:0.4rem;
+  padding: 0.6rem 0 0.8rem;
+  width:100%;
+  border-top: 1px solid rgba(201,168,76,0.08);
+  margin-top:0.5rem;
+}
+
+.btn-icon {
+  background: rgba(201,168,76,0.04);
+  border:1px solid var(--border);
+  border-radius: 20px;
+  padding:0.35rem 0.85rem;
+  color:var(--ivory-dim);
+  font-size:0.72rem;
+  font-family: var(--font-mono);
+  letter-spacing:0.06em;
+  cursor:pointer;
+  transition: all var(--transition);
+  white-space:nowrap;
+}
+
+.btn-icon:hover {
+  color:var(--gold);
+  border-color:var(--gold-dim);
+  background: rgba(201,168,76,0.1);
+  box-shadow: 0 0 12px rgba(201,168,76,0.15);
+}
+
+.btn-icon.danger:hover {
+  color:#e74c3c;
+  border-color:#e74c3c;
+  background: rgba(231,76,60,0.08);
+}
+
+/* ─── GRID PRINCIPALE ─── */
+.app-grid {
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:1.2rem;
+  max-width: 960px;
+  margin:0 auto;
+  padding: 1.2rem 0.8rem 5rem;
+}
+
+@media(min-width:768px){
+  .app-grid {
+    grid-template-columns: 320px 1fr;
+    padding: 1.8rem 1.5rem 4rem;
+    gap:1.5rem;
+  }
+}
+
+/* Mobile: riduci padding */
+@media(max-width:480px){
+  .app-grid { padding: 0.8rem 0.6rem 5rem; gap:0.8rem; }
+  .header-toolbar { gap:0.3rem; }
+  .btn-icon { padding:0.3rem 0.6rem; font-size:0.68rem; }
+}
+
+/* ─── PANNELLO VOCALE ─── */
+.voice-panel {
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display:flex; flex-direction:column; gap:1.2rem;
+}
+
+.voice-panel-title {
+  font-family: var(--font-mono);
+  font-size:0.65rem;
+  letter-spacing:0.25em;
+  text-transform:uppercase;
+  color: var(--ivory-dim);
+}
+
+/* Visualizzatore audio */
+.voice-visualizer {
+  position:relative;
+  height:80px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  border-radius: var(--radius-sm);
+  background: var(--ink-3);
+  overflow:hidden;
+}
+
+.viz-bar {
+  width:3px;
+  border-radius:2px;
+  background: var(--gold);
+  height:8px;
+  transition: height 0.05s ease;
+  opacity:0.6;
+}
+
+.viz-bar.active { opacity:1; }
+
+.voice-visualizer.idle .viz-bar { height:4px; opacity:0.2; }
+
+/* Bottone microfono */
+.mic-btn {
+  position:relative;
+  width:72px; height:72px;
+  border-radius:50%;
+  border:2px solid var(--border);
+  background: var(--ink-3);
+  color: var(--ivory-dim);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto;
+  transition: all var(--transition);
+  font-size:1.6rem;
+}
+
+.mic-btn:hover {
+  border-color:var(--gold);
+  color:var(--gold);
+  background:var(--gold-glow);
+}
+
+.mic-btn.listening {
+  border-color:var(--gold);
+  color:var(--gold);
+  background:var(--gold-glow);
+  box-shadow: 0 0 0 0 rgba(201,168,76,0.4);
+  animation: pulse 1.5s infinite;
+}
+
+.mic-btn.processing {
+  border-color: var(--blue-info);
+  color: var(--blue-info);
+  background: rgba(41,128,185,0.1);
+}
+
+.mic-btn.error {
+  border-color: var(--red-err);
+  color: var(--red-err);
+  animation: shake 0.4s ease;
+}
+
+/* Stato vocale */
+.voice-status {
+  text-align:center;
+}
+
+.voice-status-label {
+  font-family: var(--font-mono);
+  font-size:0.75rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin-bottom:0.3rem;
+}
+
+.voice-status-label.idle    { color:var(--ivory-dim); }
+.voice-status-label.active  { color:var(--gold); }
+.voice-status-label.process { color:var(--blue-info); }
+.voice-status-label.error   { color:var(--red-err); }
+.voice-status-label.confirm { color:var(--green-ok); }
+
+.voice-transcript {
+  font-family: var(--font-serif);
+  font-style:italic;
+  font-size:1rem;
+  color:var(--ivory);
+  min-height:2.4em;
+  line-height:1.4;
+  padding: 0.5rem;
+  text-align:center;
+}
+
+/* ─── CONFIRMATION DIALOG ─── */
+.confirm-box {
+  display:none;
+  background: var(--ink-3);
+  border: 1px solid rgba(39,174,96,0.4);
+  border-radius: var(--radius-sm);
+  padding:1rem;
+  text-align:center;
+}
+
+.confirm-box.visible { display:block; animation: fadeUp 0.2s ease; }
+
+.confirm-question {
+  font-family: var(--font-serif);
+  font-size:0.95rem;
+  color:var(--ivory);
+  margin-bottom:0.8rem;
+  line-height:1.4;
+}
+
+.confirm-btns {
+  display:flex; gap:0.5rem; justify-content:center;
+}
+
+.btn-confirm-yes, .btn-confirm-no {
+  flex:1; max-width:120px;
+  padding:0.5rem;
+  border-radius: var(--radius-sm);
+  border:none;
+  font-family: var(--font-mono);
+  font-size:0.8rem;
+  letter-spacing:0.1em;
+  cursor:pointer;
+  transition: opacity var(--transition);
+}
+
+.btn-confirm-yes { background:var(--green-ok); color:#fff; }
+.btn-confirm-no  { background:var(--ink-2); color:var(--ivory-dim); border:1px solid var(--border); }
+.btn-confirm-yes:hover, .btn-confirm-no:hover { opacity:0.8; }
+
+.confirm-hint {
+  font-family: var(--font-mono);
+  font-size:0.65rem;
+  color:var(--ivory-dim);
+  margin-top:0.5rem;
+  letter-spacing:0.1em;
+}
+
+/* ─── LOG COMANDI ─── */
+.cmd-log {
+  max-height:120px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color: var(--gold-dim) transparent;
+}
+
+.cmd-log-item {
+  display:flex; align-items:baseline; gap:0.5rem;
+  padding:0.25rem 0;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:0.78rem;
+}
+
+.cmd-log-time {
+  font-family: var(--font-mono);
+  font-size:0.65rem;
+  color:var(--ivory-dim);
+  white-space:nowrap;
+}
+
+.cmd-log-text { color:var(--ivory); }
+.cmd-log-text.add    { color:#58d68d; }
+.cmd-log-text.edit   { color:#5dade2; }
+.cmd-log-text.delete { color:#ec7063; }
+.cmd-log-text.error  { color:var(--red-err); }
+
+/* ─── CALENDARIO / TIMELINE ─── */
+.calendar-panel {
+  display:flex; flex-direction:column; gap:1.2rem;
+}
+
+.calendar-header {
+  display:flex; align-items:center; justify-content:space-between;
+}
+
+.calendar-nav {
+  display:flex; align-items:center; gap:0.5rem;
+}
+
+.nav-btn {
+  background:none;
+  border:1px solid var(--border);
+  border-radius: var(--radius-sm);
+  width:32px; height:32px;
+  color:var(--ivory-dim);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1rem;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.nav-btn:hover { color:var(--gold); border-color:var(--gold-dim); }
+
+.current-month {
+  font-family: var(--font-serif);
+  font-size:1.3rem;
+  font-weight:400;
+  color:var(--ivory);
+  min-width:200px;
+  text-align:center;
+  letter-spacing:0.02em;
+}
+
+/* Mini calendario */
+.mini-calendar {
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding:1rem;
+}
+
+.mini-calendar-grid {
+  display:grid;
+  grid-template-columns: repeat(7,1fr);
+  gap:2px;
+}
+
+.cal-day-name {
+  text-align:center;
+  font-family: var(--font-mono);
+  font-size:0.6rem;
+  letter-spacing:0.12em;
+  color:var(--ivory-dim);
+  padding:0.3rem 0;
+  text-transform:uppercase;
+}
+
+.cal-day {
+  position:relative;
+  aspect-ratio:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-radius: var(--radius-sm);
+  font-size:0.82rem;
+  cursor:pointer;
+  transition: background var(--transition);
+  user-select:none;
+}
+
+.cal-day:hover:not(.empty) { background:var(--ink-3); }
+.cal-day.empty { cursor:default; }
+.cal-day.today { color:var(--gold); font-weight:600; }
+.cal-day.selected { background:var(--gold-glow); color:var(--gold); }
+.cal-day.selected.today { border:1px solid var(--gold-dim); }
+
+.cal-dot {
+  position:absolute;
+  bottom:3px;
+  width:4px; height:4px;
+  border-radius:50%;
+  background:var(--gold);
+}
+
+.cal-day.other-month { color:rgba(240,234,216,0.2); }
+
+/* Timeline eventi */
+.timeline-section {
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding:1.2rem;
+}
+
+.timeline-date-label {
+  font-family: var(--font-serif);
+  font-size:1.15rem;
+  font-weight:300;
+  color:var(--gold);
+  margin-bottom:1rem;
+  padding-bottom:0.5rem;
+  border-bottom:1px solid var(--border);
+}
+
+.timeline-empty {
+  text-align:center;
+  padding:2rem;
+  color:var(--ivory-dim);
+  font-family: var(--font-serif);
+  font-style:italic;
+  font-size:0.95rem;
+}
+
+.event-item {
+  display:flex;
+  gap:1rem;
+  padding:0.7rem 0;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  animation:fadeUp 0.25s ease;
+  position:relative;
+}
+
+.event-item:last-child { border-bottom:none; }
+
+.event-time-col {
+  flex-shrink:0;
+  width:42px;
+  font-family: var(--font-mono);
+  font-size:0.72rem;
+  color:var(--gold);
+  padding-top:2px;
+}
+
+.event-body { flex:1; }
+
+.event-title {
+  font-family: var(--font-serif);
+  font-size:1.05rem;
+  color:var(--ivory);
+  line-height:1.2;
+}
+
+.event-meta {
+  font-size:0.72rem;
+  color:var(--ivory-dim);
+  font-family: var(--font-mono);
+  margin-top:0.15rem;
+}
+
+.event-actions {
+  display:flex; gap:0.3rem; opacity:0;
+  transition:opacity var(--transition);
+}
+
+.event-item:hover .event-actions { opacity:1; }
+
+.evt-btn {
+  background:none;
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:0.2rem 0.4rem;
+  font-size:0.65rem;
+  color:var(--ivory-dim);
+  cursor:pointer;
+  font-family: var(--font-mono);
+  transition: all var(--transition);
+}
+
+.evt-btn.del:hover { border-color:var(--red-err); color:var(--red-err); }
+.evt-btn.edt:hover { border-color:var(--blue-info); color:var(--blue-info); }
+
+/* Indicatore conflitto */
+.conflict-badge {
+  position:absolute;
+  top:0.5rem; right:0;
+  font-family: var(--font-mono);
+  font-size:0.6rem;
+  letter-spacing:0.1em;
+  color:#e67e22;
+  background:rgba(230,126,34,0.1);
+  border:1px solid rgba(230,126,34,0.3);
+  border-radius:4px;
+  padding:1px 5px;
+}
+
+/* ─── STATUS BAR ONLINE ─── */
+.status-bar {
+  position:fixed;
+  bottom:0; left:0; right:0;
+  z-index:50;
+  background: var(--ink-2);
+  border-top:1px solid var(--border);
+  padding:0.4rem 1.5rem;
+  display:flex; align-items:center; justify-content:space-between;
+  font-family: var(--font-mono);
+  font-size:0.65rem;
+  letter-spacing:0.1em;
+}
+
+.status-online  { color:var(--green-ok); }
+.status-offline { color:var(--red-err); }
+.status-sync    { color:var(--blue-info); }
+
+.status-dot {
+  display:inline-block;
+  width:6px; height:6px;
+  border-radius:50%;
+  margin-right:5px;
+  background:currentColor;
+}
+
+.status-dot.blink { animation: blink 1s infinite; }
+
+/* Indicatore utenti attivi */
+#active-users {
+  display:flex; align-items:center; gap:0.4rem;
+}
+
+.user-dot {
+  width:16px; height:16px;
+  border-radius:50%;
+  background:var(--gold-dim);
+  border:1px solid var(--gold);
+  font-size:0.5rem;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--ink);
+  font-weight:700;
+}
+
+/* ─── TOAST NOTIFICATIONS ─── */
+#toast-container {
+  position:fixed;
+  top:5rem; right:1rem;
+  z-index:200;
+  display:flex; flex-direction:column; gap:0.5rem;
+  pointer-events:none;
+}
+
+.toast {
+  background:var(--ink-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:0.6rem 1rem;
+  font-size:0.8rem;
+  max-width:280px;
+  animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+  pointer-events:auto;
+  display:flex; align-items:center; gap:0.5rem;
+}
+
+.toast.success { border-color:rgba(39,174,96,0.5); }
+.toast.error   { border-color:rgba(192,57,43,0.5); }
+.toast.info    { border-color:rgba(41,128,185,0.5); }
+.toast.warning { border-color:rgba(230,126,34,0.5); }
+
+/* ─── ANIMAZIONI ─── */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+@keyframes pulse {
+  0%   { box-shadow:0 0 0 0 rgba(201,168,76,0.4); }
+  70%  { box-shadow:0 0 0 14px rgba(201,168,76,0); }
+  100% { box-shadow:0 0 0 0 rgba(201,168,76,0); }
+}
+
+@keyframes shake {
+  0%,100%{ transform:translateX(0); }
+  20%    { transform:translateX(-6px); }
+  40%    { transform:translateX(6px); }
+  60%    { transform:translateX(-4px); }
+  80%    { transform:translateX(4px); }
+}
+
+@keyframes blink {
+  0%,100%{ opacity:1; }
+  50%    { opacity:0.2; }
+}
+
+@keyframes slideIn {
+  from { opacity:0; transform:translateX(20px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+
+@keyframes fadeOut {
+  to { opacity:0; transform:translateX(10px); }
+}
+
+@keyframes spin {
+  to { transform:rotate(360deg); }
+}
+
+.spinner { animation:spin 0.8s linear infinite; display:inline-block; }
+
+/* ─── MODAL MANUALE ─── */
+.modal-overlay {
+  display:none;
+  position:fixed; inset:0; z-index:150;
+  background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+
+.modal-overlay.open { display:flex; animation:fadeUp 0.2s ease; }
+
+.modal-box {
+  background:var(--ink-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:2rem;
+  width:min(480px,92vw);
+  max-height:80vh;
+  overflow-y:auto;
+  scrollbar-width:thin;
+}
+
+.modal-title {
+  font-family:var(--font-serif);
+  font-size:1.5rem;
+  font-weight:300;
+  color:var(--gold);
+  margin-bottom:1.2rem;
+}
+
+.modal-close {
+  float:right;
+  background:none; border:none;
+  color:var(--ivory-dim); font-size:1.2rem;
+  cursor:pointer; margin-top:-0.2rem;
+}
+
+.manual-input-row {
+  display:flex; flex-direction:column; gap:0.5rem;
+  margin-bottom:1rem;
+}
+
+.manual-input-row label {
+  font-family:var(--font-mono);
+  font-size:0.65rem;
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:var(--ivory-dim);
+}
+
+.manual-input-row input {
+  background:var(--ink-3);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:0.6rem 0.8rem;
+  color:var(--ivory);
+  font-family:var(--font-sans);
+  font-size:0.9rem;
+  outline:none;
+  transition:border-color var(--transition);
+}
+
+.manual-input-row input:focus { border-color:var(--gold); }
+
+/* ─── SEZIONE COMANDI VOCALI ─── */
+.commands-cheatsheet {
+  background:var(--ink-3);
+  border-radius:var(--radius-sm);
+  padding:0.8rem;
+  margin-top:0.5rem;
+}
+
+.cheatsheet-title {
+  font-family:var(--font-mono);
+  font-size:0.6rem;
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:var(--ivory-dim);
+  margin-bottom:0.5rem;
+}
+
+.cmd-example {
+  font-family:var(--font-serif);
+  font-style:italic;
+  font-size:0.82rem;
+  color:var(--ivory-dim);
+  padding:0.2rem 0;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+
+.cmd-example strong { color:var(--gold); font-style:normal; }
+
+/* ─── OFFLINE BANNER ─── */
+#offline-banner {
+  display:none;
+  position:fixed; top:0; left:0; right:0; z-index:300;
+  background:rgba(192,57,43,0.9);
+  text-align:center;
+  padding:0.5rem;
+  font-family:var(--font-mono);
+  font-size:0.75rem;
+  letter-spacing:0.1em;
+  color:#fff;
+  animation:fadeUp 0.2s ease;
+}
+
+
+/* ─── MODAL TESTO/INCOLLA ─── */
+.paste-panel {
+  background:var(--ink-3);
+  border-radius:var(--radius-sm);
+  padding:0.8rem;
+  margin-top:0.5rem;
+}
+.paste-textarea {
+  width:100%;
+  background:var(--ink-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:0.7rem;
+  color:var(--ivory);
+  font-family:var(--font-sans);
+  font-size:0.85rem;
+  resize:vertical;
+  min-height:90px;
+  outline:none;
+  transition:border-color var(--transition);
+}
+.paste-textarea:focus { border-color:var(--gold); }
+.paste-actions { display:flex; gap:0.5rem; margin-top:0.5rem; flex-wrap:wrap; }
+.btn-paste { flex:1; min-width:100px; padding:0.5rem; border-radius:var(--radius-sm);
+  border:1px solid var(--border); background:var(--ink-2); color:var(--ivory-dim);
+  font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.08em;
+  cursor:pointer; transition:all var(--transition); }
+.btn-paste:hover { border-color:var(--gold); color:var(--gold); }
+.btn-paste.primary { background:linear-gradient(135deg,#c9a84c,#a07e30);
+  border:none; color:var(--ink); font-weight:600; }
+.btn-paste.primary:hover { opacity:0.9; }
+.file-input-label { display:inline-flex; align-items:center; gap:0.4rem;
+  padding:0.5rem 0.8rem; border-radius:var(--radius-sm);
+  border:1px dashed var(--border); color:var(--ivory-dim);
+  font-family:var(--font-mono); font-size:0.72rem; cursor:pointer;
+  transition:all var(--transition); }
+.file-input-label:hover { border-color:var(--gold); color:var(--gold); }
+#file-upload { display:none; }
+
+/* Parsed events preview */
+.parsed-events { margin-top:0.8rem; display:flex; flex-direction:column; gap:0.4rem; }
+.parsed-ev-item { background:var(--ink-2); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:0.5rem 0.7rem;
+  display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; }
+.parsed-ev-check { accent-color:var(--gold); width:14px; height:14px; flex-shrink:0; }
+.parsed-ev-info { flex:1; }
+.parsed-ev-title { color:var(--ivory); font-family:var(--font-serif); }
+.parsed-ev-meta  { color:var(--ivory-dim); font-family:var(--font-mono); font-size:0.65rem; }
+
+/* Notification bell */
+.notif-bell { position:relative; }
+.notif-dot  { position:absolute; top:-2px; right:-2px; width:8px; height:8px;
+  background:var(--gold); border-radius:50%; display:none; }
+.notif-dot.active { display:block; animation:pulse 2s infinite; }
+
+/* AI processing spinner in paste panel */
+.ai-status { font-family:var(--font-mono); font-size:0.68rem; color:var(--ivory-dim);
+  text-align:center; padding:0.5rem; letter-spacing:0.1em; }
+
+.header-family {
+  font-family: var(--font-serif) !important;
+  font-size: clamp(1.1rem, 3vw, 1.6rem) !important;
+  font-weight: 300 !important;
+  color: var(--gold) !important;
+  letter-spacing: 0.35em !important;
+  text-transform: uppercase !important;
+  display: block !important;
+  text-align: center !important;
+  line-height: 1.2 !important;
+  text-shadow: 0 0 20px rgba(201,168,76,0.4) !important;
+  margin-bottom: 0.2rem !important;
+}
+
+.header-logo { line-height:1; text-align:center; }
+
+.logo-main {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 9vw, 5.5rem);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg,
+    #ffe082 0%,
+    #c9a84c 35%,
+    #a07830 60%,
+    #e8c96a 80%,
+    #7a5c1e 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  filter:
+    drop-shadow(0 1px 0 #7a5c1e)
+    drop-shadow(0 2px 0 #6b4f18)
+    drop-shadow(0 3px 0 #5a3f10)
+    drop-shadow(0 4px 0 #4a3008)
+    drop-shadow(0 8px 16px rgba(0,0,0,0.7))
+    drop-shadow(0 0 40px rgba(201,168,76,0.4));
+  animation: logoGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes logoGlow {
+  from { filter:
+    drop-shadow(0 1px 0 #7a5c1e)
+    drop-shadow(0 2px 0 #6b4f18)
+    drop-shadow(0 3px 0 #5a3f10)
+    drop-shadow(0 4px 0 #4a3008)
+    drop-shadow(0 8px 16px rgba(0,0,0,0.7))
+    drop-shadow(0 0 30px rgba(201,168,76,0.3)); }
+  to   { filter:
+    drop-shadow(0 1px 0 #7a5c1e)
+    drop-shadow(0 2px 0 #6b4f18)
+    drop-shadow(0 3px 0 #5a3f10)
+    drop-shadow(0 4px 0 #4a3008)
+    drop-shadow(0 8px 16px rgba(0,0,0,0.7))
+    drop-shadow(0 0 60px rgba(201,168,76,0.6)); }
+}
+
+.logo-sub {
+  display: block;
+  font-size: clamp(0.5rem, 1.5vw, 0.65rem);
+  font-family: var(--font-mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--ivory-dim);
+  margin-top: 0.4rem;
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     BANNER OFFLINE
+════════════════════════════════════════ -->
+<div id="offline-banner">
+  ⚠ CONNESSIONE ASSENTE — Le modifiche verranno salvate al ripristino della rete
+</div>
+
+<!-- ════════════════════════════════════════
+     SCHERMATA DI LOGIN
+════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">AG</div>
+    <div class="login-tagline">Agenda Gioffrè · Edizione Vocale</div>
+    <h2>Accesso riservato</h2>
+    <p>Inserisci le credenziali autorizzate per accedere al calendario condiviso.</p>
+    <div class="input-group">
+      <input type="email" id="login-email" placeholder="email@esempio.it" autocomplete="email"/>
+    </div>
+    <div class="input-group">
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password"/>
+    </div>
+    <button class="btn-primary" onclick="handleLogin()">Entra</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     APPLICAZIONE PRINCIPALE
+════════════════════════════════════════ -->
+<div id="app">
+
+  <header>
+    <!-- Brand centrale -->
+    <div class="header-brand">
+      <div class="header-logo"><span class="logo-main">FAMILY&nbsp;&nbsp;AG</span><span class="logo-sub">Agenda Gioffrè · Edizione Vocale</span></div>
+      <div class="header-divider"></div>
+      <span id="user-badge">—</span>
+    </div>
+    <!-- Toolbar bottoni centrata -->
+    <div class="header-toolbar">
+      <button class="btn-icon notif-bell" onclick="requestNotifPermission()" id="notif-btn" title="Attiva notifiche">🔔 Notifiche<span class="notif-dot" id="notif-dot"></span></button>
+      <button class="btn-icon" onclick="openPasteModal()">📎 Incolla</button>
+      <button class="btn-icon" onclick="openManualModal()">＋ Evento</button>
+      <button class="btn-icon" onclick="cycleVoice()" id="voice-gender-btn" title="Cambia voce">🔊 ♂</button>
+      <button class="btn-icon" onclick="showHelp()">？ Aiuto</button>
+      <button class="btn-icon danger" onclick="handleLogout()">⏻ Esci</button>
+    </div>
+  </header>
+
+  <div class="app-grid">
+
+    <!-- ─── PANNELLO VOCALE ─── -->
+    <div class="voice-panel">
+      <div class="voice-panel-title">Controllo Vocale</div>
+
+      <!-- Visualizzatore frequenze -->
+      <div class="voice-visualizer idle" id="viz">
+        <!-- bars generate via JS -->
+      </div>
+
+      <!-- Bottone microfono -->
+      <button class="mic-btn" id="mic-btn" onclick="toggleVoice()">
+        🎙
+      </button>
+
+      <!-- Stato vocale -->
+      <div class="voice-status">
+        <div class="voice-status-label idle" id="voice-status-label">In attesa</div>
+        <div class="voice-transcript" id="voice-transcript">
+          Premi il microfono e parla
+        </div>
+      </div>
+
+      <!-- Confirmation Loop Box -->
+      <div class="confirm-box" id="confirm-box">
+        <div class="confirm-question" id="confirm-question">—</div>
+        <div class="confirm-btns">
+          <button class="btn-confirm-yes" onclick="handleConfirmYes()">✓ Sì</button>
+          <button class="btn-confirm-no"  onclick="handleConfirmNo()">✗ No</button>
+        </div>
+        <div class="confirm-hint">oppure di' "Sì" / "No" con la voce</div>
+      </div>
+
+      <!-- Cheatsheet comandi -->
+      <div class="commands-cheatsheet">
+        <div class="cheatsheet-title">Esempi di comandi</div>
+        <div class="cmd-example"><strong>Inserimento:</strong> "Aggiungi dentista domani alle dieci"</div>
+        <div class="cmd-example"><strong>Inserimento:</strong> "Segna riunione venerdì alle quattordici"</div>
+        <div class="cmd-example"><strong>Modifica:</strong> "Sposta dentista alle undici"</div>
+        <div class="cmd-example"><strong>Cancellazione:</strong> "Elimina riunione di venerdì"</div>
+        <div class="cmd-example"><strong>Conferma:</strong> "Sì" / "Confermo" / "No" / "Annulla"</div>
+      </div>
+
+      <!-- Log comandi -->
+      <div>
+        <div class="voice-panel-title" style="margin-bottom:0.5rem">Log comandi</div>
+        <div class="cmd-log" id="cmd-log"></div>
+      </div>
+    </div>
+
+    <!-- ─── PANNELLO CALENDARIO ─── -->
+    <div class="calendar-panel">
+      <div class="calendar-header">
+        <div class="calendar-nav">
+          <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+          <div class="current-month" id="current-month-label">—</div>
+          <button class="nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <button class="btn-icon" onclick="goToToday()">Oggi</button>
+      </div>
+
+      <!-- Mini calendario -->
+      <div class="mini-calendar">
+        <div class="mini-calendar-grid" id="calendar-grid">
+          <!-- generato via JS -->
+        </div>
+      </div>
+
+      <!-- Timeline eventi del giorno selezionato -->
+      <div class="timeline-section">
+        <div class="timeline-date-label" id="selected-date-label">—</div>
+        <div id="events-list">
+          <div class="timeline-empty">Nessun evento per questa data.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /app-grid -->
+
+</div><!-- /app -->
+
+<!-- ════════════════════════════════════════
+     MODAL INSERIMENTO MANUALE
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="manual-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeManualModal()">✕</button>
+    <div class="modal-title">Aggiungi evento</div>
+    <div class="manual-input-row">
+      <label>Titolo</label>
+      <input type="text" id="manual-title" placeholder="es. Riunione, Dentista…"/>
+    </div>
+    <div class="manual-input-row">
+      <label>Data</label>
+      <input type="date" id="manual-date"/>
+    </div>
+    <div class="manual-input-row">
+      <label>Ora</label>
+      <input type="time" id="manual-time"/>
+    </div>
+    <div class="manual-input-row">
+      <label>Note (opzionale)</label>
+      <input type="text" id="manual-notes" placeholder="…"/>
+    </div>
+    <button class="btn-primary" onclick="saveManualEvent()" style="margin-top:0.5rem">Salva evento</button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     MODAL INCOLLA / UPLOAD / AI
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal-box" style="max-width:520px">
+    <button class="modal-close" onclick="closePasteModal()">✕</button>
+    <div class="modal-title">📎 Incolla testo o carica file</div>
+    <p style="font-size:0.82rem;color:var(--ivory-dim);margin-bottom:1rem;">
+      Incolla un messaggio, email o lista di impegni — l'app estrarrà automaticamente gli eventi.
+    </p>
+
+    <div class="manual-input-row">
+      <label>Testo da analizzare</label>
+      <textarea class="paste-textarea" id="paste-text"
+        placeholder="Es: Riunione lunedì 10 marzo alle 15. Dentista martedì alle 9:30. Cena con Marco venerdì sera alle 20..."></textarea>
+    </div>
+
+    <div class="paste-actions">
+      <label class="file-input-label">
+        📄 Carica file (txt)
+        <input type="file" id="file-upload" accept=".txt,.text" onchange="handleFileUpload(event)"/>
+      </label>
+      <button class="btn-paste primary" onclick="parseAndPreview()">🔍 Analizza</button>
+    </div>
+
+    <div id="ai-status" class="ai-status" style="display:none">⏳ Analisi in corso…</div>
+
+    <div id="parsed-events" class="parsed-events"></div>
+
+    <div id="paste-save-row" style="display:none;margin-top:1rem;">
+      <button class="btn-primary" onclick="saveSelectedParsedEvents()">✓ Salva eventi selezionati</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TOAST CONTAINER
+════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════
+     STATUS BAR
+════════════════════════════════════════ -->
+<div class="status-bar">
+  <div id="connection-status" class="status-online">
+    <span class="status-dot"></span>ONLINE
+  </div>
+  <div id="active-users"></div>
+  <div id="sync-status" style="color:var(--ivory-dim)">AG v2.1.0</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MAIN APPLICATION SCRIPT
+════════════════════════════════════════ -->
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   1.  CONFIGURAZIONE FIREBASE
+   ▸  Sostituisci con i tuoi dati da Firebase Console →
+      Project Settings → General → Your apps → SDK setup
+══════════════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDLpaGA9GCeb01MXzExP3F1NjMeWkUx7z4",
+  authDomain:        "agenda-gioffre.firebaseapp.com",
+  projectId:         "agenda-gioffre",
+  storageBucket:     "agenda-gioffre.firebasestorage.app",
+  messagingSenderId: "32077992981",
+  appId:             "1:32077992981:web:0f18b35434d074cd76ea1c"
+};
+
+/*  WHITELIST email autorizzate  */
+const EMAIL_WHITELIST = [
+  "oscar.gioffre@gmail.com"
+  /* aggiungi altre email qui sotto, es:
+  "altrapersona@gmail.com",
+  */
+];
+
+/* ══════════════════════════════════════════════════════════════════
+   2.  SCHEMA DATABASE FIRESTORE
+   ──────────────────────────────────────────────────────────────────
+   Collection: "events"
+   Document fields:
+     id          : string   (auto Firestore ID)
+     title       : string   (titolo evento)
+     date        : string   (YYYY-MM-DD)
+     time        : string   (HH:MM | null)
+     notes       : string   (note opzionali | "")
+     createdBy   : string   (email utente)
+     createdAt   : Timestamp
+     updatedBy   : string   (email last modifier)
+     updatedAt   : Timestamp
+     version     : number   (conflict resolution: sempre incrementato)
+     pendingLock : string   (null | userId che sta modificando — per lock ottimistico)
+
+   Collection: "presence"
+   Document fields:
+     uid         : string
+     email       : string
+     lastSeen    : Timestamp
+     status      : "online"|"offline"
+══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+   3.  INIZIALIZZAZIONE FIREBASE
+══════════════════════════════════════════════════════════════════ */
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+/* Abilita persistenza offline (cache locale per gestire disconnessioni) */
+db.enablePersistence({ synchronizeTabs:true })
+  .catch(err => {
+    if(err.code === 'failed-precondition') console.warn('Multi-tab offline: disabilitato');
+    else if(err.code === 'unimplemented') console.warn('Browser non supporta offline persistence');
+  });
+
+/* ══════════════════════════════════════════════════════════════════
+   4.  STATO GLOBALE DELL'APP
+══════════════════════════════════════════════════════════════════ */
+const APP = {
+  user:            null,
+  currentYear:     new Date().getFullYear(),
+  currentMonth:    new Date().getMonth(),
+  selectedDate:    formatDate(new Date()),
+  events:          {},        // { dateKey: [event, …] }
+  voiceState:      'idle',    // idle | listening | processing | confirming | error
+  pendingAction:   null,      // { intent, title, date, time, eventId } — in attesa conferma
+  recognition:     null,
+  synthesis:       window.speechSynthesis,
+  voiceGender:     'male', /* 'male' o 'female' */
+  unsubscribeEvents: null,
+  analyser:        null,
+  audioContext:    null,
+  vizBars:         [],
+  vizAnimFrame:    null,
+  isOnline:        navigator.onLine,
+  conflictQueue:   [],        // azioni accumulate offline
+  lastVoiceEnd:    0          // throttle accidentale doppio click
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   5.  AUTENTICAZIONE
+══════════════════════════════════════════════════════════════════ */
+auth.onAuthStateChanged(user => {
+  if(user) {
+    if(!EMAIL_WHITELIST.includes(user.email)) {
+      showToast(`Accesso negato: ${user.email} non è nella whitelist.`, 'error');
+      auth.signOut();
+      return;
+    }
+    APP.user = user;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-badge').textContent = user.email;
+    initApp();
+  } else {
+    APP.user = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    if(APP.unsubscribeEvents) APP.unsubscribeEvents();
+    updatePresence(false);
+  }
+});
+
+async function handleLogin(){
+  // Prevent accidental button triggers after login
+  document.activeElement && document.activeElement.blur();
+  try { await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION); } catch(e){}
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errDiv   = document.getElementById('login-error');
+  errDiv.textContent = '';
+  if(!email || !password){ errDiv.textContent='Compila tutti i campi.'; return; }
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch(e) {
+    errDiv.textContent = translateAuthError(e.code);
+  }
+}
+
+function handleLogout(){
+  updatePresence(false);
+  auth.signOut();
+}
+
+function translateAuthError(code){
+  const map = {
+    'auth/user-not-found':    'Email non trovata.',
+    'auth/wrong-password':    'Password errata.',
+    'auth/invalid-email':     'Email non valida.',
+    'auth/too-many-requests': 'Troppi tentativi. Riprova tra poco.',
+    'auth/network-request-failed':'Errore di rete. Controlla la connessione.'
+  };
+  return map[code] || `Errore: ${code}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   6.  INIZIALIZZAZIONE APP
+══════════════════════════════════════════════════════════════════ */
+function initApp(){
+  closePasteModal();
+  buildVizBars();
+  renderCalendar();
+  subscribeToEvents();
+  initVoice();
+  updatePresence(true);
+  watchPresence();
+  setupOfflineDetection();
+  prefillManualDate();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   7.  SINCRONIZZAZIONE REAL-TIME (onSnapshot)
+══════════════════════════════════════════════════════════════════ */
+function subscribeToEvents(){
+  if(APP.unsubscribeEvents) APP.unsubscribeEvents();
+
+  APP.unsubscribeEvents = db.collection('events')
+    .onSnapshot(snapshot => {
+      /* Ricostruisce la mappa eventi per data */
+      APP.events = {};
+      snapshot.forEach(doc => {
+        const ev = { id:doc.id, ...doc.data() };
+        if(!APP.events[ev.date]) APP.events[ev.date] = [];
+        APP.events[ev.date].push(ev);
+      });
+      /* Ordina ogni giorno per ora (lato client, no indice richiesto) */
+      Object.keys(APP.events).forEach(d => {
+        APP.events[d].sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      });
+
+      /* Risolve conflitti se necessario */
+      resolveConflictsInQueue();
+
+      renderCalendar();
+      renderEventsForDate(APP.selectedDate);
+      setSyncStatus('synced');
+      if(Notification.permission==='granted') scheduleAllNotifications();
+    }, err => {
+      setSyncStatus('error');
+      showToast('Errore sincronizzazione: ' + err.message, 'error');
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   8.  GESTIONE CONFLITTI
+   ─────────────────────────────────────────────────────────────────
+   Strategia: Last-Write-Wins con version vector.
+   Se due utenti inviano un'azione sulla stessa ora/data nello stesso
+   secondo, chi ha il timestamp più recente vince.
+   Le scritture usano transazioni Firestore per atomicità.
+══════════════════════════════════════════════════════════════════ */
+async function writeEventWithConflictCheck(intent, eventData, existingId=null){
+  try {
+    if(intent === 'add'){
+      /* Controlla sovrapposizioni esatte data+ora */
+      const existing = (APP.events[eventData.date] || [])
+        .filter(e => e.time === eventData.time && e.id !== existingId);
+
+      if(existing.length > 0){
+        showToast(
+          `⚠ Conflitto: "${existing[0].title}" è già alle ${eventData.time}. L'evento verrà comunque aggiunto.`,
+          'warning'
+        );
+      }
+
+      const docRef = db.collection('events').doc();
+      await docRef.set({
+        title:     eventData.title,
+        date:      eventData.date,
+        time:      eventData.time || '',
+        notes:     eventData.notes || '',
+        createdBy: APP.user.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: APP.user.email,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        version:   1,
+        pendingLock: null
+      });
+      logCommand('add', `+ Aggiunto: "${eventData.title}" — ${eventData.date} ${eventData.time||''}`);
+
+    } else if(intent === 'edit' && existingId){
+      /* Transazione per gestire scritture concorrenti */
+      await db.runTransaction(async tx => {
+        const ref = db.collection('events').doc(existingId);
+        const snap = await tx.get(ref);
+        if(!snap.exists) throw new Error('Evento non trovato');
+
+        const current = snap.data();
+        tx.update(ref, {
+          title:    eventData.title    ?? current.title,
+          date:     eventData.date     ?? current.date,
+          time:     eventData.time     ?? current.time,
+          notes:    eventData.notes    ?? current.notes,
+          updatedBy: APP.user.email,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          version:   (current.version || 1) + 1
+        });
+      });
+      logCommand('edit', `✎ Modificato: "${eventData.title}"`);
+
+    } else if(intent === 'delete' && existingId){
+      await db.collection('events').doc(existingId).delete();
+      logCommand('delete', `✕ Eliminato ID: ${existingId}`);
+    }
+
+    setSyncStatus('synced');
+    showToast('Evento salvato ✓', 'success');
+
+  } catch(err) {
+    /* Accoda offline */
+    if(!APP.isOnline){
+      APP.conflictQueue.push({ intent, eventData, existingId, ts: Date.now() });
+      showToast('Offline: azione in coda', 'warning');
+    } else {
+      showToast('Errore: ' + err.message, 'error');
+    }
+  }
+}
+
+function resolveConflictsInQueue(){
+  if(!APP.isOnline || APP.conflictQueue.length === 0) return;
+  /* Processa la coda nell'ordine del timestamp originale */
+  const sorted = [...APP.conflictQueue].sort((a,b) => a.ts - b.ts);
+  APP.conflictQueue = [];
+  sorted.forEach(item => {
+    writeEventWithConflictCheck(item.intent, item.eventData, item.existingId);
+  });
+  if(sorted.length > 0)
+    showToast(`${sorted.length} azione/i offline sincronizzate ✓`, 'info');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   9.  MOTORE VOCALE — Web Speech API
+══════════════════════════════════════════════════════════════════ */
+function initVoice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    showToast('Browser non supporta Web Speech API. Usa Chrome o Edge.', 'error');
+    document.getElementById('mic-btn').disabled = true;
+    return;
+  }
+  const rec = new SR();
+  rec.lang = 'it-IT';
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.maxAlternatives = 3;
+
+  rec.onstart = () => {
+    setVoiceState('listening');
+    startAudioVisualization();
+  };
+
+  rec.onresult = (e) => {
+    let interim = '', final = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    document.getElementById('voice-transcript').textContent = final || interim;
+
+    if(final){
+      stopAudioVisualization();
+      processVoiceCommand(final.trim().toLowerCase());
+    }
+  };
+
+  rec.onerror = (e) => {
+    stopAudioVisualization();
+    const msg = { 'no-speech':'Nessun suono rilevato.', 'not-allowed':'Microfono non autorizzato.',
+                  'network':'Errore di rete.', 'aborted':'Ascolto interrotto.' };
+    setVoiceState('error', msg[e.error] || e.error);
+    setTimeout(()=>setVoiceState('idle'), 2000);
+  };
+
+  rec.onend = () => {
+    APP.lastVoiceEnd = Date.now();
+    stopAudioVisualization();
+    if(APP.voiceState === 'listening') setVoiceState('idle');
+  };
+
+  APP.recognition = rec;
+}
+
+function toggleVoice(){
+  if(Date.now() - APP.lastVoiceEnd < 400) return; // anti-bounce
+  if(APP.voiceState === 'listening'){
+    APP.recognition.stop();
+    setVoiceState('idle');
+  } else if(APP.voiceState === 'idle' || APP.voiceState === 'error'){
+    if(!APP.isOnline && !APP.conflictQueue){
+      showToast('Sei offline. I comandi verranno accodati.', 'warning');
+    }
+    try{ APP.recognition.start(); }
+    catch(e){ console.warn(e); }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   10. PARSER COMANDI VOCALI — Intent Classification + NER
+   ─────────────────────────────────────────────────────────────────
+   Livelli di parsing:
+     L1 — Intent detection (regex su sinonimi)
+     L2 — Date entity extraction (ieri/oggi/domani/dopodomani/giorno della settimana/DD/MM)
+     L3 — Time entity extraction (ora numerica, denominazione italiana)
+     L4 — Title extraction (substring residua)
+══════════════════════════════════════════════════════════════════ */
+const INTENT_PATTERNS = {
+  confirm:   /^(sì|si|sì sì|confermo|conferma|giusto|esatto|ok|okay|certo|vai|procedi|positivo)$/i,
+  reject:    /^(no|negativo|annulla|annullato|sbagliato|stop|aspetta|cancella tutto|rifai)$/i,
+  add:       /\b(aggiungi|inserisci|segna|metti|crea|nuovo|nuova|fissa|pianifica|schedula|ricordami|aggiungo|mettimi|segnami)\b/i,
+  edit:      /\b(sposta|cambia|modifica|aggiorna|rinomina|cambiare|modificare|spostare|posticipa|anticipa|riporta)\b/i,
+  delete:    /\b(cancella|elimina|rimuovi|togli|annulla(?! tutto)|butta|cestina|cancellare|eliminare)\b/i,
+  list:      /\b(mostra|lista|vedi|visualizza|elenca|che (ci )?(ho|abbiamo)|cosa (c['è]|ho|abbiamo))\b/i
+};
+
+/* Parole trigger di data */
+const DATE_TRIGGERS = {
+  ieri:        -1,
+  oggi:         0,
+  domani:       1,
+  dopodomani:   2,
+  'dopo domani':2
+};
+
+const DOW_IT = {
+  lunedì:1, lunedi:1, lun:1,
+  martedì:2, martedi:2, mar:2,
+  mercoledì:3, mercoledi:3, mer:3,
+  giovedì:4, giovedi:4, gio:4,
+  venerdì:5, venerdi:5, ven:5,
+  sabato:6, sab:6,
+  domenica:0, dom:0
+};
+
+const MONTH_IT = {
+  gennaio:0, febbraio:1, marzo:2, aprile:3, maggio:4, giugno:5,
+  luglio:6, agosto:7, settembre:8, ottobre:9, novembre:10, dicembre:11
+};
+
+/* Dizionario ore in italiano parlato → numero */
+const HOUR_WORDS = {
+  'mezzanotte':0,'una':1,'due':2,'tre':3,'quattro':4,'cinque':5,
+  'sei':6,'sette':7,'otto':8,'nove':9,'dieci':10,'undici':11,
+  'mezzogiorno':12,'dodici':12,'tredici':13,'quattordici':14,
+  'quindici':15,'sedici':16,'diciassette':17,'diciotto':18,
+  'diciannove':19,'venti':20,'ventuno':21,'ventidue':22,'ventitre':23,
+  'ventitré':23
+};
+
+function parseDate(text){
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Offset (ieri/oggi/domani)
+  for(const [word, offset] of Object.entries(DATE_TRIGGERS)){
+    if(text.includes(word)){
+      const d = new Date(today); d.setDate(d.getDate() + offset);
+      return { date: formatDate(d), matched: word };
+    }
+  }
+
+  // Giorno della settimana (prossimo)
+  for(const [name, dow] of Object.entries(DOW_IT)){
+    const rx = new RegExp(`\\b${name}\\b`, 'i');
+    if(rx.test(text)){
+      const d = new Date(today);
+      let diff = dow - d.getDay();
+      if(diff <= 0) diff += 7;
+      d.setDate(d.getDate() + diff);
+      return { date: formatDate(d), matched: name };
+    }
+  }
+
+  // DD Mese (es. "15 marzo")
+  const dmMatch = text.match(/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i);
+  if(dmMatch){
+    const d = new Date(today.getFullYear(), MONTH_IT[dmMatch[2].toLowerCase()], parseInt(dmMatch[1]));
+    return { date: formatDate(d), matched: dmMatch[0] };
+  }
+
+  // DD/MM o DD-MM
+  const numMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
+  if(numMatch){
+    const yr = numMatch[3] ? parseInt(numMatch[3]) : today.getFullYear();
+    const d = new Date(yr < 100 ? yr + 2000 : yr, parseInt(numMatch[2])-1, parseInt(numMatch[1]));
+    return { date: formatDate(d), matched: numMatch[0] };
+  }
+
+  return { date: APP.selectedDate, matched: null };
+}
+
+function parseTime(text){
+  // HH:MM o HHeMM
+  const numT = text.match(/\b(\d{1,2})[:\.](\d{2})\b/);
+  if(numT) return { time: `${numT[1].padStart(2,'0')}:${numT[2]}`, matched:numT[0] };
+
+  // "alle X e mezza" / "alle X e trenta"
+  const wordT = text.match(/alle\s+([\w]+)(?:\s+e\s+(mezza|trenta|quindici|quarantacinque|dieci|venti|cinque))?/i);
+  if(wordT){
+    const h = HOUR_WORDS[wordT[1].toLowerCase()];
+    if(h !== undefined){
+      const minMap = { mezza:30, trenta:30, quindici:15, quarantacinque:45, dieci:10, venti:20, cinque:5 };
+      const m = wordT[2] ? (minMap[wordT[2].toLowerCase()] || 0) : 0;
+      return { time:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`, matched:wordT[0] };
+    }
+  }
+
+  // "le X" (ora implicita)
+  const leT = text.match(/\ble\s+([\w]+)\b/i);
+  if(leT){
+    const h = HOUR_WORDS[leT[1].toLowerCase()];
+    if(h !== undefined) return { time:`${String(h).padStart(2,'0')}:00`, matched:leT[0] };
+  }
+
+  // Solo numero dopo "ore"
+  const oreT = text.match(/\bore\s+(\d{1,2})\b/i);
+  if(oreT) return { time:`${oreT[1].padStart(2,'0')}:00`, matched:oreT[0] };
+
+  return { time:'', matched:null };
+}
+
+function extractTitle(text, toRemove){
+  let t = text;
+  // Rimuove tutti i matched token
+  toRemove.filter(Boolean).forEach(token => {
+    t = t.replace(new RegExp(escapeRegex(token),'gi'), '');
+  });
+  // Rimuove parole-trigger di intent
+  const allTriggers = [
+    'aggiungi','inserisci','segna','metti','crea','nuovo','nuova','fissa','pianifica',
+    'schedula','ricordami','sposta','cambia','modifica','aggiorna','rinomina',
+    'cancella','elimina','rimuovi','togli','alle','ore','il','per','la','lo','un','una',
+    'al','del','della','prossimo','prossima','questa','questo','che'
+  ];
+  allTriggers.forEach(w => {
+    t = t.replace(new RegExp(`\\b${w}\\b`,'gi'), ' ');
+  });
+  return t.replace(/\s+/g,' ').trim();
+}
+
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+/* ══════════════════════════════════════════════════════════════════
+   11. PROCESSAMENTO COMANDO VOCALE
+══════════════════════════════════════════════════════════════════ */
+function processVoiceCommand(raw){
+  setVoiceState('processing');
+
+  /* Confirmation loop — se stiamo aspettando sì/no */
+  if(APP.voiceState === 'confirming' || APP.pendingAction){
+    if(INTENT_PATTERNS.confirm.test(raw)){ handleConfirmYes(); return; }
+    if(INTENT_PATTERNS.reject.test(raw)){  handleConfirmNo();  return; }
+  }
+
+  /* Riconoscimento intent */
+  let intent = null;
+  if     (INTENT_PATTERNS.add.test(raw))    intent = 'add';
+  else if(INTENT_PATTERNS.edit.test(raw))   intent = 'edit';
+  else if(INTENT_PATTERNS.delete.test(raw)) intent = 'delete';
+  else if(INTENT_PATTERNS.list.test(raw)){
+    handleListIntent();
+    return;
+  }
+
+  if(!intent){
+    setVoiceState('error', `Non capito: "${raw}"`);
+    speak('Non ho capito il comando. Riprova.');
+    setTimeout(()=>setVoiceState('idle'), 2500);
+    return;
+  }
+
+  /* Estrazione entità */
+  const dateResult  = parseDate(raw);
+  const timeResult  = parseTime(raw);
+  const removedTokens = [dateResult.matched, timeResult.matched];
+  const title = extractTitle(raw, removedTokens);
+
+  /* Validazione titolo */
+  if(intent !== 'delete' && title.length < 2){
+    setVoiceState('error', 'Titolo non riconosciuto');
+    speak('Non ho capito il titolo dell\'evento. Riprova.');
+    setTimeout(()=>setVoiceState('idle'), 2500);
+    return;
+  }
+
+  /* Cerca eventuale evento da modificare/cancellare */
+  let targetEventId = null;
+  if(intent === 'edit' || intent === 'delete'){
+    const dayEvents = APP.events[dateResult.date] || [];
+    const found = dayEvents.find(e => e.title.toLowerCase().includes(title.toLowerCase()));
+    if(found) targetEventId = found.id;
+    else if(intent === 'edit' || intent === 'delete'){
+      /* Cerca su tutte le date */
+      for(const [, evs] of Object.entries(APP.events)){
+        const f = evs.find(e => e.title.toLowerCase().includes(title.toLowerCase()));
+        if(f){ targetEventId = f.id; break; }
+      }
+    }
+  }
+
+  /* Costruisce azione in sospeso */
+  APP.pendingAction = {
+    intent,
+    title:       title || '(senza titolo)',
+    date:        dateResult.date,
+    time:        timeResult.time,
+    eventId:     targetEventId,
+    raw
+  };
+
+  /* Confirmation Loop */
+  const confirmMsg = buildConfirmMessage(APP.pendingAction);
+  showConfirmBox(confirmMsg);
+  speak(confirmMsg + '… Sì o No?');
+  setVoiceState('confirming', confirmMsg);
+}
+
+function buildConfirmMessage(action){
+  const { intent, title, date, time } = action;
+  const humanDate = formatDateHuman(date);
+  const t = time ? ` alle ${time}` : '';
+  if(intent === 'add')    return `Aggiungo "${title}" per ${humanDate}${t}?`;
+  if(intent === 'edit')   return `Modifico "${title}" per ${humanDate}${t}?`;
+  if(intent === 'delete') return `Elimino "${title}" (${humanDate})?`;
+  return '';
+}
+
+function handleListIntent(){
+  const evs = APP.events[APP.selectedDate] || [];
+  if(evs.length === 0){
+    speak('Nessun evento per oggi.');
+  } else {
+    speak(`Hai ${evs.length} evento${evs.length>1?'i':''}: ${evs.map(e=>e.title).join(', ')}.`);
+  }
+  setVoiceState('idle');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   12. CONFIRMATION LOOP
+══════════════════════════════════════════════════════════════════ */
+function showConfirmBox(msg){
+  const box = document.getElementById('confirm-box');
+  document.getElementById('confirm-question').textContent = msg;
+  box.classList.add('visible');
+
+  /* Avvia ascolto automatico per la risposta */
+  setTimeout(()=>{
+    if(APP.voiceState === 'confirming' && APP.recognition){
+      try{ APP.recognition.start(); } catch(e){}
+    }
+  }, 800);
+}
+
+function hideConfirmBox(){
+  document.getElementById('confirm-box').classList.remove('visible');
+}
+
+async function handleConfirmYes(){
+  hideConfirmBox();
+  const action = APP.pendingAction;
+  APP.pendingAction = null;
+  setVoiceState('processing', 'Salvataggio…');
+
+  if(!action){ setVoiceState('idle'); return; }
+
+  await writeEventWithConflictCheck(
+    action.intent,
+    { title:action.title, date:action.date, time:action.time, notes:'' },
+    action.eventId
+  );
+
+  speak('Fatto!');
+  setVoiceState('idle');
+  selectDate(action.date);
+}
+
+function handleConfirmNo(){
+  hideConfirmBox();
+  APP.pendingAction = null;
+  speak('Comando annullato.');
+  setVoiceState('idle');
+  logCommand('error', '✗ Annullato dall\'utente');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   13. TEXT-TO-SPEECH (feedback vocale)
+══════════════════════════════════════════════════════════════════ */
+function speak(text){
+  if(!APP.synthesis) return;
+  APP.synthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'it-IT';
+
+  const voices = APP.synthesis.getVoices();
+  const itVoices = voices.filter(v => v.lang.startsWith('it'));
+
+  /* Selezione voce per genere con ranking qualità */
+  const MALE_PREF   = ['Luca','Google italiano','Microsoft Cosimo','it-IT-LucaNeural','it_IT male'];
+  const FEMALE_PREF = ['Alice','Federica','Paola','Google italiano','Microsoft Elsa','it-IT-ElsaNeural','it-IT-IsabellaNeural','it_IT female'];
+
+  function pickVoice(prefs){
+    for(const name of prefs){
+      const v = itVoices.find(v => v.name.toLowerCase().includes(name.toLowerCase()));
+      if(v) return v;
+    }
+    return itVoices[0] || null;
+  }
+
+  if(APP.voiceGender === 'female'){
+    utt.voice  = pickVoice(FEMALE_PREF);
+    utt.rate   = 1.0;
+    utt.pitch  = 1.15;
+    utt.volume = 1.0;
+  } else {
+    utt.voice  = pickVoice(MALE_PREF);
+    utt.rate   = 0.95;
+    utt.pitch  = 0.85;
+    utt.volume = 1.0;
+  }
+
+  APP.synthesis.speak(utt);
+}
+
+function cycleVoice(){
+  APP.voiceGender = APP.voiceGender === 'male' ? 'female' : 'male';
+  const btn = document.getElementById('voice-gender-btn');
+  if(btn) btn.textContent = '🔊 ' + (APP.voiceGender === 'male' ? '♂' : '♀');
+  const label = APP.voiceGender === 'male' ? 'Voce maschile' : 'Voce femminile';
+  showToast(label + ' selezionata', 'info');
+  speak('Ciao, questa è la mia voce.');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   14. VISUALIZZATORE AUDIO (Audio API)
+══════════════════════════════════════════════════════════════════ */
+function buildVizBars(){
+  const viz = document.getElementById('viz');
+  viz.innerHTML = '';
+  for(let i=0;i<24;i++){
+    const bar = document.createElement('div');
+    bar.className='viz-bar';
+    viz.appendChild(bar);
+    APP.vizBars.push(bar);
+  }
+}
+
+async function startAudioVisualization(){
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    APP.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    APP.analyser = APP.audioContext.createAnalyser();
+    APP.analyser.fftSize = 64;
+    const src = APP.audioContext.createMediaStreamSource(stream);
+    src.connect(APP.analyser);
+    document.getElementById('viz').classList.remove('idle');
+    drawViz();
+  } catch(e){
+    console.warn('Viz audio non disponibile:', e);
+  }
+}
+
+function drawViz(){
+  if(!APP.analyser){ return; }
+  const data = new Uint8Array(APP.analyser.frequencyBinCount);
+  APP.analyser.getByteFrequencyData(data);
+  APP.vizBars.forEach((bar, i) => {
+    const h = Math.max(4, (data[i] || 0) / 3);
+    bar.style.height = h + 'px';
+    bar.classList.toggle('active', h > 8);
+  });
+  APP.vizAnimFrame = requestAnimationFrame(drawViz);
+}
+
+function stopAudioVisualization(){
+  if(APP.vizAnimFrame) cancelAnimationFrame(APP.vizAnimFrame);
+  APP.vizBars.forEach(b => { b.style.height='4px'; b.classList.remove('active'); });
+  document.getElementById('viz').classList.add('idle');
+  if(APP.audioContext && APP.audioContext.state !== 'closed'){
+    APP.audioContext.close().catch(()=>{});
+  }
+  APP.analyser = null; APP.audioContext = null;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   15. CALENDARIO UI
+══════════════════════════════════════════════════════════════════ */
+const MONTHS_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                   'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const DAYS_IT   = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+
+function renderCalendar(){
+  const year  = APP.currentYear;
+  const month = APP.currentMonth;
+  document.getElementById('current-month-label').textContent =
+    `${MONTHS_IT[month]} ${year}`;
+
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
+
+  /* Intestazioni giorni */
+  DAYS_IT.forEach(d => {
+    const el = document.createElement('div');
+    el.className='cal-day-name';
+    el.textContent=d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Dom
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = formatDate(new Date());
+
+  /* Padding inizio */
+  for(let i=0;i<firstDay;i++){
+    const el = document.createElement('div');
+    el.className='cal-day empty';
+    grid.appendChild(el);
+  }
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const el = document.createElement('div');
+    el.className='cal-day';
+    if(dateKey === today)            el.classList.add('today');
+    if(dateKey === APP.selectedDate) el.classList.add('selected');
+    el.textContent = d;
+
+    /* Punto evento */
+    if(APP.events[dateKey]?.length > 0){
+      const dot = document.createElement('div');
+      dot.className='cal-dot';
+      el.appendChild(dot);
+    }
+
+    el.onclick = () => selectDate(dateKey);
+    grid.appendChild(el);
+  }
+}
+
+function selectDate(dateKey){
+  APP.selectedDate = dateKey;
+  renderCalendar();
+  renderEventsForDate(dateKey);
+}
+
+function changeMonth(delta){
+  APP.currentMonth += delta;
+  if(APP.currentMonth > 11){ APP.currentMonth=0; APP.currentYear++; }
+  if(APP.currentMonth < 0) { APP.currentMonth=11; APP.currentYear--; }
+  renderCalendar();
+}
+
+function goToToday(){
+  const now = new Date();
+  APP.currentYear  = now.getFullYear();
+  APP.currentMonth = now.getMonth();
+  selectDate(formatDate(now));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   16. TIMELINE EVENTI
+══════════════════════════════════════════════════════════════════ */
+function renderEventsForDate(dateKey){
+  const label = document.getElementById('selected-date-label');
+  label.textContent = formatDateHuman(dateKey);
+
+  const list = document.getElementById('events-list');
+  const evs  = (APP.events[dateKey] || [])
+    .slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
+
+  if(evs.length === 0){
+    list.innerHTML='<div class="timeline-empty">Nessun evento per questa data.</div>';
+    return;
+  }
+
+  list.innerHTML = evs.map(ev => `
+    <div class="event-item" data-id="${ev.id}">
+      <div class="event-time-col">${ev.time || '–'}</div>
+      <div class="event-body">
+        <div class="event-title">${escapeHtml(ev.title)}</div>
+        <div class="event-meta">
+          ${ev.updatedBy ? `da ${ev.updatedBy}` : ''}
+          ${ev.notes ? ' · ' + escapeHtml(ev.notes) : ''}
+          ${ev.version > 1 ? ` · v${ev.version}` : ''}
+        </div>
+      </div>
+      <div class="event-actions">
+        <button class="evt-btn edt" onclick="promptEditEvent('${ev.id}')">✎</button>
+        <button class="evt-btn del" onclick="confirmDeleteEvent('${ev.id}','${escapeHtml(ev.title).replace(/'/g,"\\'")}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function promptEditEvent(id){
+  /* Trova evento */
+  let ev = null;
+  for(const [,evs] of Object.entries(APP.events)){
+    ev = evs.find(e=>e.id===id);
+    if(ev) break;
+  }
+  if(!ev) return;
+  /* Apre modal pre-compilata */
+  document.getElementById('manual-title').value = ev.title;
+  document.getElementById('manual-date').value  = ev.date;
+  document.getElementById('manual-time').value  = ev.time || '';
+  document.getElementById('manual-notes').value = ev.notes || '';
+  /* Salva ID per update */
+  document.getElementById('manual-modal').dataset.editId = id;
+  openManualModal();
+}
+
+async function confirmDeleteEvent(id, title){
+  if(confirm(`Eliminare "${title}"?`)){
+    await writeEventWithConflictCheck('delete', {}, id);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   17. INSERIMENTO MANUALE
+══════════════════════════════════════════════════════════════════ */
+function openManualModal(){
+  document.getElementById('manual-modal').classList.add('open');
+}
+
+function closeManualModal(){
+  const m = document.getElementById('manual-modal');
+  m.classList.remove('open');
+  m.dataset.editId = '';
+}
+
+function prefillManualDate(){
+  document.getElementById('manual-date').value = APP.selectedDate || formatDate(new Date());
+}
+
+async function saveManualEvent(){
+  const title = document.getElementById('manual-title').value.trim();
+  const date  = document.getElementById('manual-date').value;
+  const time  = document.getElementById('manual-time').value;
+  const notes = document.getElementById('manual-notes').value.trim();
+  const editId= document.getElementById('manual-modal').dataset.editId;
+
+  if(!title){ showToast('Inserisci un titolo.','error'); return; }
+  if(!date)  { showToast('Inserisci una data.','error');  return; }
+
+  if(editId){
+    await writeEventWithConflictCheck('edit', {title,date,time,notes}, editId);
+  } else {
+    await writeEventWithConflictCheck('add',  {title,date,time,notes});
+  }
+  closeManualModal();
+  /* Reset form */
+  ['manual-title','manual-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('manual-time').value='';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   18. PRESENZA UTENTI (status bar)
+══════════════════════════════════════════════════════════════════ */
+function updatePresence(online){
+  if(!APP.user) return;
+  const ref = db.collection('presence').doc(APP.user.uid);
+  ref.set({
+    uid: APP.user.uid,
+    email: APP.user.email,
+    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+    status: online ? 'online' : 'offline'
+  }, { merge:true }).catch(()=>{});
+}
+
+function watchPresence(){
+  db.collection('presence').where('status','==','online')
+    .onSnapshot(snap => {
+      const users = snap.docs.map(d=>d.data()).filter(u=>u.uid!==APP.user.uid);
+      const container = document.getElementById('active-users');
+      container.innerHTML = users.slice(0,5).map(u=>`
+        <div class="user-dot" title="${u.email}">${u.email[0].toUpperCase()}</div>
+      `).join('');
+    }, ()=>{});
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   19. STATO VOICE + UI STATE MACHINE
+══════════════════════════════════════════════════════════════════ */
+function setVoiceState(state, msg=''){
+  APP.voiceState = state;
+  const btn      = document.getElementById('mic-btn');
+  const label    = document.getElementById('voice-status-label');
+  const transcript = document.getElementById('voice-transcript');
+
+  btn.className = 'mic-btn';
+  label.className = 'voice-status-label';
+
+  const states = {
+    idle:       { btnClass:'',          labelClass:'idle',    labelText:'In attesa',     icon:'🎙', transcript: msg || 'Premi il microfono e parla' },
+    listening:  { btnClass:'listening', labelClass:'active',  labelText:'In ascolto…',   icon:'🔴', transcript: '…' },
+    processing: { btnClass:'processing',labelClass:'process', labelText:'Elaborazione…', icon:'⏳', transcript: msg || '…' },
+    confirming: { btnClass:'processing',labelClass:'confirm', labelText:'Conferma?',     icon:'❓', transcript: msg },
+    error:      { btnClass:'error',     labelClass:'error',   labelText:'Errore',        icon:'⚠', transcript: msg }
+  };
+
+  const s = states[state] || states.idle;
+  if(s.btnClass) btn.classList.add(s.btnClass);
+  label.classList.add(s.labelClass);
+  label.textContent = s.labelText;
+  btn.textContent   = s.icon;
+  if(s.transcript) transcript.textContent = s.transcript;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   20. NETWORKING — rilevamento online/offline
+══════════════════════════════════════════════════════════════════ */
+function setupOfflineDetection(){
+  window.addEventListener('online',  () => setOnline(true));
+  window.addEventListener('offline', () => setOnline(false));
+  setOnline(navigator.onLine);
+}
+
+function setOnline(online){
+  APP.isOnline = online;
+  const banner = document.getElementById('offline-banner');
+  const status = document.getElementById('connection-status');
+  banner.style.display = online ? 'none' : 'block';
+  if(online){
+    status.className='status-online';
+    status.innerHTML='<span class="status-dot"></span>ONLINE';
+    resolveConflictsInQueue();
+    updatePresence(true);
+  } else {
+    status.className='status-offline';
+    status.innerHTML='<span class="status-dot blink"></span>OFFLINE';
+    updatePresence(false);
+  }
+}
+
+function setSyncStatus(state){
+  const el = document.getElementById('sync-status');
+  const now = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  if(state==='synced') el.textContent=`Sincronizzato ${now}`;
+  else if(state==='error') el.textContent='Errore sync';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   21. TOAST SYSTEM
+══════════════════════════════════════════════════════════════════ */
+function showToast(msg, type='info'){
+  const container = document.getElementById('toast-container');
+  const icons = { success:'✓', error:'✕', info:'ℹ', warning:'⚠' };
+  const toast = document.createElement('div');
+  toast.className=`toast ${type}`;
+  toast.innerHTML=`<span>${icons[type]||'•'}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(()=>toast.remove(), 3200);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   22. LOG COMANDI
+══════════════════════════════════════════════════════════════════ */
+function logCommand(type, msg){
+  const log = document.getElementById('cmd-log');
+  const time = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const item = document.createElement('div');
+  item.className='cmd-log-item';
+  item.innerHTML=`<span class="cmd-log-time">${time}</span><span class="cmd-log-text ${type}">${escapeHtml(msg)}</span>`;
+  log.prepend(item);
+  /* Max 30 voci */
+  while(log.children.length > 30) log.lastChild.remove();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   23. HELP / COMANDI RAPIDI
+══════════════════════════════════════════════════════════════════ */
+function showHelp(){
+  speak('Esempi di comandi: Aggiungi dentista domani alle dieci. Sposta riunione di venerdì alle quattordici. Elimina palestra.');
+  showToast('Suggerimenti vocali: consulta il riquadro "Esempi di comandi" nel pannello sinistro.','info');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   24. UTILITY
+══════════════════════════════════════════════════════════════════ */
+function formatDate(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDateHuman(dateKey){
+  if(!dateKey) return '—';
+  const [y,m,d] = dateKey.split('-');
+  const dow = new Date(dateKey).toLocaleDateString('it-IT',{weekday:'long'});
+  return `${dow.charAt(0).toUpperCase()+dow.slice(1)}, ${parseInt(d)} ${MONTHS_IT[parseInt(m)-1]} ${y}`;
+}
+
+function escapeHtml(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+/* Inizializza set data odierna nel campo manuale */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('manual-date').value = formatDate(new Date());
+});
+
+/* Carica le voci TTS non appena disponibili */
+if(window.speechSynthesis){
+  window.speechSynthesis.onvoiceschanged = () => {};
+  window.speechSynthesis.getVoices();
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   NOTIFICHE PUSH — sera prima (20:00) + 1 ora prima evento
+══════════════════════════════════════════════════════════════════ */
+
+function requestNotifPermission(){
+  if(!('Notification' in window)){
+    showToast('Il browser non supporta le notifiche','warning'); return;
+  }
+  Notification.requestPermission().then(p => {
+    if(p === 'granted'){
+      document.getElementById('notif-dot').classList.add('active');
+      showToast('Notifiche attivate! Riceverai promemoria per ogni evento.','success');
+      
+    } else {
+      showToast('Permesso notifiche negato','error');
+    }
+  });
+}
+
+function scheduleAllNotifications(){
+  if(Notification.permission !== 'granted') return;
+  // Cancella timer vecchi
+  if(window._notifTimers){ window._notifTimers.forEach(t => clearTimeout(t)); }
+  window._notifTimers = [];
+
+  const now = new Date();
+  Object.values(APP.events).flat().forEach(ev => {
+    if(!ev.date) return;
+    const [y,m,d] = ev.date.split('-').map(Number);
+    const [hh,mm] = ev.time ? ev.time.split(':').map(Number) : [9,0];
+    const evTime = new Date(y, m-1, d, hh, mm);
+    if(evTime < now) return;
+
+    // Notifica sera prima (20:00 del giorno precedente)
+    const seraPrima = new Date(y, m-1, d-1, 20, 0);
+    scheduleNotif(seraPrima, `Domani: ${ev.title}`, ev.time ? `Ore ${ev.time}` : 'Tutto il giorno');
+
+    // Notifica 1 ora prima
+    const unOra = new Date(evTime.getTime() - 60*60*1000);
+    scheduleNotif(unOra, `Tra 1 ora: ${ev.title}`, ev.time ? `Oggi alle ${ev.time}` : '');
+  });
+}
+
+function scheduleNotif(when, title, body){
+  const ms = when - new Date();
+  if(ms < 0) return;
+  const t = setTimeout(() => {
+    new Notification(title, {
+      body,
+      icon: '/manifest.json',
+      badge: '/manifest.json',
+      tag: title,
+      renotify: false
+    });
+  }, ms);
+  window._notifTimers = window._notifTimers || [];
+  window._notifTimers.push(t);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MODAL INCOLLA / UPLOAD — Parser intelligente eventi
+══════════════════════════════════════════════════════════════════ */
+
+function openPasteModal(){
+  window._parsedEvents = [];
+  document.getElementById('paste-modal').classList.add('open');
+  document.getElementById('paste-text').value = '';
+  document.getElementById('parsed-events').innerHTML = '';
+  document.getElementById('paste-save-row').style.display = 'none';
+  document.getElementById('ai-status').style.display = 'none';
+}
+function closePasteModal(){
+  document.getElementById('paste-modal').classList.remove('open');
+}
+
+function handleFileUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('paste-text').value = ev.target.result;
+    showToast('File caricato!','success');
+  };
+  reader.readAsText(file);
+}
+
+async function parseAndPreview(){
+  const text = document.getElementById('paste-text').value.trim();
+  if(!text){ showToast('Inserisci del testo prima','warning'); return; }
+
+  document.getElementById('ai-status').style.display = 'block';
+  document.getElementById('ai-status').textContent = '⏳ Analisi in corso…';
+  document.getElementById('parsed-events').innerHTML = '';
+  document.getElementById('paste-save-row').style.display = 'none';
+
+  const events = parseEventsFromText(text);
+
+  document.getElementById('ai-status').style.display = 'none';
+
+  if(!events.length){
+    document.getElementById('parsed-events').innerHTML =
+      '<div class="ai-status">⚠ Nessun evento trovato. Prova con date più esplicite.</div>';
+    return;
+  }
+
+  renderParsedEvents(events);
+}
+
+function parseEventsFromText(text){
+  const events = [];
+  const today = new Date();
+
+  // Mesi in italiano
+  const MESI = {
+    gennaio:0, febbraio:1, marzo:2, aprile:3, maggio:4, giugno:5,
+    luglio:6, agosto:7, settembre:8, ottobre:9, novembre:10, dicembre:11,
+    gen:0, feb:1, mar:2, apr:3, mag:4, giu:5,
+    lug:6, ago:7, set:8, ott:9, nov:10, dic:11
+  };
+  const GIORNI_REL = {
+    oggi:0, domani:1, dopodomani:2,
+    lunedì:1, martedì:2, mercoledì:3, giovedì:4, venerdì:5, sabato:6, domenica:0,
+    lunedi:1, martedi:2, mercoledi:3, giovedi:4, venerdi:5
+  };
+
+  function nextWeekday(target){
+    const d = new Date(today);
+    const cur = d.getDay();
+    let diff = target - cur;
+    if(diff <= 0) diff += 7;
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function toDateStr(d){ return d.toISOString().slice(0,10); }
+
+  function parseTime(s){
+    // "alle 15", "alle 9:30", "alle nove", "ore 10"
+    const numeri = {
+      'zero':'00','una':'01','uno':'01','due':'02','tre':'03','quattro':'04',
+      'cinque':'05','sei':'06','sette':'07','otto':'08','nove':'09','dieci':'10',
+      'undici':'11','dodici':'12','tredici':'13','quattordici':'14','quindici':'15',
+      'sedici':'16','diciassette':'17','diciotto':'18','diciannove':'19',
+      'venti':'20','ventuno':'21','ventidue':'22','ventitrè':'23','mezzanotte':'00','mezzogiorno':'12'
+    };
+    // numeric HH:MM
+    let m = s.match(/(?:alle|ore)\s+(\d{1,2})(?::(\d{2}))?/i);
+    if(m) return m[1].padStart(2,'0') + ':' + (m[2]||'00');
+    // word
+    for(const [w,h] of Object.entries(numeri)){
+      if(s.toLowerCase().includes('alle ' + w) || s.toLowerCase().includes('ore ' + w)){
+        return h + ':00';
+      }
+    }
+    // "sera" → 20:00, "mattina" → 09:00, "pranzo" → 13:00, "pomeriggio" → 15:00
+    if(/sera/i.test(s)) return '20:00';
+    if(/pranzo/i.test(s)) return '13:00';
+    if(/pomeriggio/i.test(s)) return '15:00';
+    if(/mattina|mattino/i.test(s)) return '09:00';
+    return '';
+  }
+
+  function parseDate(chunk){
+    // Relativo: domani, oggi, lunedì...
+    for(const [w,v] of Object.entries(GIORNI_REL)){
+      if(chunk.toLowerCase().includes(w)){
+        if(w==='oggi') return toDateStr(today);
+        if(w==='domani'){ const d=new Date(today); d.setDate(d.getDate()+1); return toDateStr(d); }
+        if(w==='dopodomani'){ const d=new Date(today); d.setDate(d.getDate()+2); return toDateStr(d); }
+        return toDateStr(nextWeekday(v));
+      }
+    }
+    // "10 marzo", "il 5 aprile 2026"
+    const m = chunk.match(/(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?/i);
+    if(m){
+      const mese = MESI[m[2].toLowerCase()];
+      if(mese !== undefined){
+        const anno = m[3] ? parseInt(m[3]) : today.getFullYear();
+        const d = new Date(anno, mese, parseInt(m[1]));
+        if(d >= today || m[3]) return toDateStr(d);
+        // se data passata, anno prossimo
+        return toDateStr(new Date(anno+1, mese, parseInt(m[1])));
+      }
+    }
+    // "DD/MM" o "DD/MM/YYYY"
+    const m2 = chunk.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+    if(m2){
+      const anno = m2[3] ? parseInt(m2[3]) : today.getFullYear();
+      return toDateStr(new Date(anno, parseInt(m2[2])-1, parseInt(m2[1])));
+    }
+    return '';
+  }
+
+  // Verbi che precedono un evento
+  const TRIGGER = /(?:riunione|meeting|appuntamento|visita|dentista|medico|dottore|cena|pranzo|colazione|palestra|allenamento|corso|lezione|esame|colloquio|call|videochiamata|conferenza|evento|compleanno|anniversario|partita|viaggio|volo|treno|farmacia|spesa|consegna|ritiro)/gi;
+
+  // Spezza il testo in frasi
+  const sentences = text.split(/[.\n;!?]+/).map(s=>s.trim()).filter(Boolean);
+
+  sentences.forEach(sentence => {
+    const dateStr = parseDate(sentence);
+    const timeStr = parseTime(sentence);
+
+    // Cerca titolo: cerca trigger o prende le prime parole significative
+    let title = '';
+    const triggerMatch = sentence.match(TRIGGER);
+    if(triggerMatch){
+      // Prendi il contesto intorno al trigger
+      const idx = sentence.toLowerCase().indexOf(triggerMatch[0].toLowerCase());
+      title = sentence.slice(Math.max(0,idx-10), idx+30).trim();
+      // Pulisci preposizioni iniziali
+      title = title.replace(/^(con|dal|per|di|il|la|lo|gli|le|un|una)\s+/i,'');
+      title = title.replace(/\s+(alle|ore|il|la|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|domani|oggi|gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre).*/i,'').trim();
+    } else if(dateStr){
+      // Nessun trigger ma c'è data: prendi le prime 5 parole
+      title = sentence.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]?\d{0,4}|\d{1,2}\s+[a-z]+|alle\s*\S*|ore\s*\S*|domani|oggi|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|vener[dì]|sabato|domenica)/gi,'').trim();
+      title = title.split(' ').slice(0,5).join(' ').trim();
+    }
+
+    if(title.length < 2 || !dateStr) return;
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+
+    events.push({ title, date: dateStr, time: timeStr, notes: sentence.slice(0,80) });
+  });
+
+  // Deduplication
+  const seen = new Set();
+  return events.filter(ev => {
+    const key = ev.title + ev.date;
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function renderParsedEvents(events){
+  window._parsedEvents = events;
+  const container = document.getElementById('parsed-events');
+  container.innerHTML = events.map((ev,i) => `
+    <div class="parsed-ev-item">
+      <input type="checkbox" class="parsed-ev-check" id="pev-${i}" checked/>
+      <div class="parsed-ev-info">
+        <div class="parsed-ev-title">${ev.title}</div>
+        <div class="parsed-ev-meta">${ev.date}${ev.time ? ' · ' + ev.time : ''}</div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('paste-save-row').style.display = 'block';
+}
+
+async function saveSelectedParsedEvents(){
+  const events = window._parsedEvents || [];
+  let saved = 0;
+  for(let i=0; i<events.length; i++){
+    const cb = document.getElementById('pev-'+i);
+    if(!cb || !cb.checked) continue;
+    const ev = events[i];
+    try {
+      await db.collection('events').add({
+        title:     ev.title,
+        date:      ev.date,
+        time:      ev.time || '',
+        notes:     ev.notes || '',
+        createdBy: APP.user.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: APP.user.email,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        version:   1
+      });
+      saved++;
+    } catch(e){ showToast('Errore salvataggio: ' + ev.title, 'error'); }
+  }
+  closePasteModal();
+  showToast(`${saved} event${saved===1?'o':'i'} salvat${saved===1?'o':'i'}!`, 'success');
+}
+
+
+</script>
+
+<script>
+// ── Service Worker (PWA offline support) ──
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js")
+      .then(() => console.log("SW registrato"))
+      .catch(e => console.warn("SW errore:", e));
+  });
+}
+</script>
+</body>
+</html>
